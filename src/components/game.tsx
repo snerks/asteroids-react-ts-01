@@ -33,6 +33,20 @@ interface Ship {
   thrust: { x: number; y: number };
 }
 
+interface Roid {
+  x: number;
+  y: number;
+
+  xv: number;
+  yv: number;
+
+  a: number;
+  r: number;
+
+  offs: number[];
+  vert: number;
+}
+
 export interface GameProps {
   width: number;
   height: number;
@@ -42,6 +56,14 @@ export interface GameState {
   levelIndex: number;
 
   ship: Ship;
+
+  roids: Roid[];
+  roidsLeft: number;
+  roidsTotal: number;
+
+  lives: number;
+  score: number;
+  scoreHigh: number;
 }
 
 const FireKeyCode = 32; // Space
@@ -70,6 +92,18 @@ class Game extends React.Component<GameProps, GameState> {
   // private LASER_EXPLODE_DURATION_SEC: number = 0.1; // duration of the lasers' explosion in seconds
   private LASER_MAX_COUNT: number = 10; // maximum number of lasers on screen at once
   private LASER_SPEED_PX_SEC: number = 500; // speed of lasers in pixels per second
+
+  private ROID_JAG: number = 0.4; // jaggedness of the asteroids (0 = none, 1 = lots)
+  // private ROID_PTS_LGE: number = 20; // points scored for a large asteroid
+  // private ROID_PTS_MED: number = 50; // points scored for a medium asteroid
+  // private ROID_PTS_SML: number = 100; // points scored for a small asteroid
+  private ROID_MINIMUM_COUNT: number = 3; // starting number of asteroids
+  private ROID_SIZE: number = 100; // starting size of asteroids in pixels
+  private ROID_SPD: number = 50; // max starting speed of asteroids in pixels per second
+  private ROID_VERT: number = 10; // average number of vertices on each asteroid
+
+  private SHOW_BOUNDING = false; // show or hide collision bounding
+  // private SHOW_CENTRE_DOT = false; // show or hide ship's centre dot
 
   private gameCanvas: HTMLCanvasElement | null;
 
@@ -115,7 +149,15 @@ class Game extends React.Component<GameProps, GameState> {
           x: 0,
           y: 0
         }
-      }
+      },
+
+      roids: [],
+      roidsLeft: 0,
+      roidsTotal: 0,
+
+      lives: 0,
+      score: 0,
+      scoreHigh: 0
     };
   }
 
@@ -130,10 +172,80 @@ class Game extends React.Component<GameProps, GameState> {
     // set up the game loop
     setInterval(() => this.updateGameStatus(), 1000 / this.FPS);
     // this.updateGameStatus();
+
+    this.createAsteroidBelt();
   }
 
   public componentDidUpdate() {
     this.updateCanvas();
+  }
+
+  public getNewAsteroid(x: number, y: number, r: number): Roid {
+    const { levelIndex } = this.state;
+
+    const asteroidSpeedMultiplier = 1 + 0.1 * levelIndex;
+
+    const roid: Roid = {
+      x,
+      y,
+
+      xv:
+        ((Math.random() * this.ROID_SPD * asteroidSpeedMultiplier) / this.FPS) *
+        (Math.random() < 0.5 ? 1 : -1),
+
+      yv:
+        ((Math.random() * this.ROID_SPD * asteroidSpeedMultiplier) / this.FPS) *
+        (Math.random() < 0.5 ? 1 : -1),
+
+      a: Math.random() * Math.PI * 2, // in radians
+      r,
+      offs: [],
+      vert: Math.floor(
+        Math.random() * (this.ROID_VERT + 1) + this.ROID_VERT / 2
+      )
+    };
+
+    // populate the offsets array
+    for (let i = 0; i < roid.vert; i++) {
+      roid.offs.push(Math.random() * this.ROID_JAG * 2 + 1 - this.ROID_JAG);
+    }
+
+    return roid;
+  }
+
+  public createAsteroidBelt() {
+    const { width, height } = this.props;
+
+    const newState = { ...this.state };
+
+    const { levelIndex, ship } = newState;
+
+    newState.roids = [];
+
+    // 1 LARGE + 2 MEDIUM + 4 SMALL
+    newState.roidsTotal = (this.ROID_MINIMUM_COUNT + levelIndex) * (1 + 2 + 4);
+
+    newState.roidsLeft = newState.roidsTotal;
+
+    let x: number;
+    let y: number;
+
+    for (let i = 0; i < this.ROID_MINIMUM_COUNT + levelIndex; i++) {
+      // random asteroid location (not touching spaceship)
+      do {
+        x = Math.floor(Math.random() * width);
+        y = Math.floor(Math.random() * height);
+      } while (
+        this.distBetweenPoints(ship.centreX, ship.centreY, x, y) <
+        this.ROID_SIZE * 2 + ship.radius
+      );
+
+      newState.roids.push(
+        this.getNewAsteroid(x, y, Math.ceil(this.ROID_SIZE / 2))
+      );
+    }
+
+    this.setState(newState);
   }
 
   public updateGameStatus() {
@@ -141,7 +253,7 @@ class Game extends React.Component<GameProps, GameState> {
     const nextState = { ...this.state };
 
     // handle Ship
-    const { ship } = nextState;
+    const { ship, roids } = nextState;
 
     // rotate the ship
     ship.angleInRadians += ship.rotationInRadians;
@@ -152,13 +264,18 @@ class Game extends React.Component<GameProps, GameState> {
 
     // handle edge of screen
     if (ship.centreX < 0 - ship.radius) {
+      // Off LHS
       ship.centreX = width + ship.radius;
     } else if (ship.centreX > width + ship.radius) {
+      // Off RHS
       ship.centreX = 0 - ship.radius;
     }
+
     if (ship.centreY < 0 - ship.radius) {
+      // Off top
       ship.centreY = height + ship.radius;
     } else if (ship.centreY > height + ship.radius) {
+      // Off bottom
       ship.centreY = 0 - ship.radius;
     }
 
@@ -205,7 +322,7 @@ class Game extends React.Component<GameProps, GameState> {
       // fxThrust.stop();
     }
 
-    // move the lasers
+    // move the laser bullets
     for (let i = ship.lasers.length - 1; i >= 0; i--) {
       // check distance travelled
       if (ship.lasers[i].dist > this.LASER_DISTANCE * width) {
@@ -246,22 +363,29 @@ class Game extends React.Component<GameProps, GameState> {
       }
     }
 
+    // Move asteroids
+    for (const roid of roids) {
+      roid.x += roid.xv;
+      roid.y += roid.yv;
+
+      // handle asteroid edge of screen
+      if (roid.x < 0 - roid.r) {
+        roid.x = width + roid.r;
+      } else if (roid.x > width + roid.r) {
+        roid.x = 0 - roid.r;
+      }
+
+      if (roid.y < 0 - roid.r) {
+        roid.y = height + roid.r;
+      } else if (roid.y > height + roid.r) {
+        roid.y = 0 - roid.r;
+      }
+    }
+
     this.setState(nextState);
   }
 
   public updateCanvas() {
-    // if (!this.refs) {
-    //   return;
-    // }
-
-    // const canvas = this.refs.canvas as HTMLCanvasElement;
-
-    // if (!this.gameCanvasRefObject) {
-    //   return;
-    // }
-
-    // const canvas = this.gameCanvasRefObject.current;
-
     if (!this.gameCanvas) {
       return;
     }
@@ -302,10 +426,7 @@ class Game extends React.Component<GameProps, GameState> {
     );
 
     // Handle Ship
-    const { ship } = this.state;
-
-    // rotate the ship
-    // ship.angleInRadians += ship.rotationInRadians;
+    const { ship, roids } = this.state;
 
     const blinkOn = ship.blinkNum % 2 === 0;
     const exploding = ship.explodeTime > 0;
@@ -411,6 +532,50 @@ class Game extends React.Component<GameProps, GameState> {
       }
     }
 
+    // draw the asteroids
+    let a: number;
+    let r: number;
+    let x: number;
+    let y: number;
+
+    let offs: number[];
+    let vert: number;
+
+    for (let i = 0; i < roids.length; i++) {
+      ctx.strokeStyle = "slategrey";
+      ctx.lineWidth = this.SHIP_SIZE / 20;
+
+      // get the asteroid properties
+      a = roids[i].a;
+      r = roids[i].r;
+      x = roids[i].x;
+      y = roids[i].y;
+      offs = roids[i].offs;
+      vert = roids[i].vert;
+
+      // draw the path
+      ctx.beginPath();
+      ctx.moveTo(x + r * offs[0] * Math.cos(a), y + r * offs[0] * Math.sin(a));
+
+      // draw the polygon
+      for (let j = 1; j < vert; j++) {
+        ctx.lineTo(
+          x + r * offs[j] * Math.cos(a + (j * Math.PI * 2) / vert),
+          y + r * offs[j] * Math.sin(a + (j * Math.PI * 2) / vert)
+        );
+      }
+      ctx.closePath();
+      ctx.stroke();
+
+      // show asteroid's collision circle
+      if (this.SHOW_BOUNDING) {
+        ctx.strokeStyle = "lime";
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2, false);
+        ctx.stroke();
+      }
+    }
+
     // tslint:disable-next-line:no-console
     // console.log("updateCanvas: End");
   }
@@ -437,13 +602,6 @@ class Game extends React.Component<GameProps, GameState> {
   }
 
   public shootLaser = (ship: Ship) => {
-    // const nextState = { ...this.state };
-
-    // const { ship } = nextState;
-    // const nextShip: Ship = { ...ship };
-
-    // nextShip.lasers = [...ship.lasers];
-
     // create the laser object
     if (ship.canShoot && ship.lasers.length < this.LASER_MAX_COUNT) {
       ship.lasers.push({
@@ -528,6 +686,15 @@ class Game extends React.Component<GameProps, GameState> {
     }
 
     this.setState({ levelIndex: 0, ship: nextShip });
+  };
+
+  private distBetweenPoints = (
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number
+  ): number => {
+    return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
   };
 
   private drawShip = (

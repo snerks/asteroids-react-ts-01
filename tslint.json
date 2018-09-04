@@ -18,6 +18,7 @@
     "member-access": false,
     "ordered-imports": false,
     "jsx-no-lambda": false,
-    "no-console": false
+    "no-console": false,
+    "member-ordering": false
   }
 }
