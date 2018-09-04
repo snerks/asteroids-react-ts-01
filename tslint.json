@@ -17,6 +17,7 @@
     "prefer-const": true,
     "member-access": false,
     "ordered-imports": false,
-    "jsx-no-lambda": false
+    "jsx-no-lambda": false,
+    "no-console": false
   }
 }
