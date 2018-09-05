@@ -67,6 +67,9 @@ export interface GameState {
 
   text: string;
   textAlpha: number;
+
+  foregroundColour: string;
+  backgroundColour: string;
 }
 
 const FireKeyCode = 32; // Space
@@ -126,15 +129,19 @@ class Game extends React.Component<GameProps, GameState> {
     this.gameCanvas = null;
     this.gameCanvasRefHandlerFn = (element: HTMLCanvasElement) => {
       this.gameCanvas = element;
+      this.gameCanvas.focus();
     };
 
     const { width, height } = props;
 
     this.state = {
+      foregroundColour: "white",
+      backgroundColour: "black",
+
       text: "",
       textAlpha: 1.0,
 
-      levelIndex: 0,
+      levelIndex: -1,
 
       ship: {
         // Centre of canvas
@@ -259,7 +266,7 @@ class Game extends React.Component<GameProps, GameState> {
       );
     }
 
-    this.setState(newState);
+    // this.setState(newState);
   }
 
   public updateGameStatus() {
@@ -558,7 +565,7 @@ class Game extends React.Component<GameProps, GameState> {
   }
 
   public destroyAsteroid(nextState: GameState, index: number) {
-    console.log("destroyAsteroid : Start");
+    // console.log("destroyAsteroid : Start");
 
     // const nextState = { ...this.state };
 
@@ -607,7 +614,25 @@ class Game extends React.Component<GameProps, GameState> {
       this.newLevel(nextState);
     }
 
-    console.log("destroyAsteroid : End");
+    // console.log("destroyAsteroid : End");
+  }
+
+  public drawBorder(
+    ctx: CanvasRenderingContext2D,
+    xPos: number,
+    yPos: number,
+    width: number,
+    height: number,
+    borderColour: string,
+    thickness = 1
+  ) {
+    ctx.fillStyle = borderColour;
+    ctx.fillRect(
+      xPos - thickness,
+      yPos - thickness,
+      width + thickness * 2,
+      height + thickness * 2
+    );
   }
 
   public updateCanvas() {
@@ -621,10 +646,24 @@ class Game extends React.Component<GameProps, GameState> {
       return;
     }
 
-    const { score, scoreHigh } = this.state;
+    const {
+      foregroundColour,
+      backgroundColour,
+      // score,
+      scoreHigh
+    } = this.state;
 
     // Draw background
-    ctx.fillStyle = "black";
+    // this.drawBorder(
+    //   ctx,
+    //   0,
+    //   0,
+    //   this.gameCanvas.width,
+    //   this.gameCanvas.height,
+    //   foregroundColour
+    // );
+
+    ctx.fillStyle = backgroundColour;
     ctx.fillRect(0, 0, this.gameCanvas.width, this.gameCanvas.height);
 
     // // draw the high score
@@ -656,10 +695,11 @@ class Game extends React.Component<GameProps, GameState> {
     // draw the score
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
-    ctx.fillStyle = "white";
+    ctx.fillStyle = foregroundColour;
     ctx.font = this.TEXT_SIZE + "px dejavu sans mono";
     ctx.fillText(
-      score.toString(10),
+      // score.toString(10),
+      "Level: " + (this.state.levelIndex + 1).toString(10),
       this.props.width - this.SHIP_SIZE / 2,
       this.SHIP_SIZE
     );
@@ -667,7 +707,7 @@ class Game extends React.Component<GameProps, GameState> {
     // draw the high score
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillStyle = "white";
+    ctx.fillStyle = foregroundColour;
     ctx.font = this.TEXT_SIZE * 0.75 + "px dejavu sans mono";
     ctx.fillText("BEST " + scoreHigh, this.props.width / 2, this.SHIP_SIZE);
 
@@ -679,7 +719,12 @@ class Game extends React.Component<GameProps, GameState> {
       // console.log("draw the game text");
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = "rgba(255, 255, 255, " + textAlpha + ")";
+
+      ctx.fillStyle =
+        foregroundColour === "white"
+          ? "rgba(255, 255, 255, " + textAlpha + ")"
+          : "rgba(0, 0, 0, " + textAlpha + ")";
+
       ctx.font = "small-caps " + this.TEXT_SIZE + "px dejavu sans mono";
       ctx.fillText(text, this.props.width / 2, this.props.height * 0.75);
       // textAlpha -= 1.0 / TEXT_FADE_TIME / FPS;
@@ -695,7 +740,7 @@ class Game extends React.Component<GameProps, GameState> {
     let lifeColour: string;
 
     for (let i = 0; i < lives; i++) {
-      lifeColour = exploding && i === lives - 1 ? "red" : "white";
+      lifeColour = exploding && i === lives - 1 ? "red" : foregroundColour;
 
       this.drawShip(
         ctx,
@@ -965,66 +1010,70 @@ class Game extends React.Component<GameProps, GameState> {
   };
 
   public handleKeyDown = (ev: React.KeyboardEvent<HTMLCanvasElement>): void => {
-    const { ship } = this.state;
+    const newState = { ...this.state };
+    const { ship } = newState;
 
     if (ship.dead) {
       return;
     }
 
-    const nextShip = { ...ship };
+    // const nextShip = { ...ship };
 
     switch (ev.keyCode) {
       case FireKeyCode: // space bar (shoot laser)
-        this.shootLaser(nextShip);
+        this.shootLaser(ship);
         break;
 
       case RotateLeftKeyCode: // left arrow (rotate ship left)
-        nextShip.rotationInRadians =
+        ship.rotationInRadians =
           ((this.SHIP_TURN_SPEED_DEGREES_SEC / 180) * Math.PI) / this.FPS;
         break;
 
       case RotateRightKeyCode: // right arrow (rotate ship right)
-        nextShip.rotationInRadians =
+        ship.rotationInRadians =
           ((-this.SHIP_TURN_SPEED_DEGREES_SEC / 180) * Math.PI) / this.FPS;
         break;
 
       case ThrustKeyCode: // up arrow (thrust the ship forward)
-        nextShip.thrusting = true;
+        ship.thrusting = true;
         break;
     }
 
-    this.setState({ levelIndex: 0, ship: nextShip });
+    // this.setState({ levelIndex: 0, ship: nextShip });
+    this.setState(newState);
   };
 
   public handleKeyUp = (ev: React.KeyboardEvent<HTMLCanvasElement>): void => {
-    const { ship } = this.state;
+    const newState = { ...this.state };
+    const { ship } = newState;
 
     if (ship.dead) {
       return;
     }
 
     // const nextShip = this.state.ship
-    const nextShip = { ...ship };
+    // const nextShip = { ...ship };
 
     switch (ev.keyCode) {
       case FireKeyCode: // space bar (allow shooting again)
-        nextShip.canShoot = true;
+        ship.canShoot = true;
         break;
 
       case RotateLeftKeyCode: // left arrow (stop rotating left)
-        nextShip.rotationInRadians = 0;
+        ship.rotationInRadians = 0;
         break;
 
       case RotateRightKeyCode: // right arrow (stop rotating right)
-        nextShip.rotationInRadians = 0;
+        ship.rotationInRadians = 0;
         break;
 
       case ThrustKeyCode: // up arrow (stop thrusting)
-        nextShip.thrusting = false;
+        ship.thrusting = false;
         break;
     }
 
-    this.setState({ levelIndex: 0, ship: nextShip });
+    // this.setState({ levelIndex: 0, ship: nextShip });
+    this.setState(newState);
   };
 
   private distBetweenPoints = (
@@ -1126,7 +1175,7 @@ class Game extends React.Component<GameProps, GameState> {
 
     this.newLevel(newState);
 
-    // this.setState(newState);
+    this.setState(newState);
   }
 
   public newLevel(newState: GameState) {
