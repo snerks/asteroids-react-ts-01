@@ -646,12 +646,7 @@ class Game extends React.Component<GameProps, GameState> {
       return;
     }
 
-    const {
-      foregroundColour,
-      backgroundColour,
-      // score,
-      scoreHigh
-    } = this.state;
+    const { foregroundColour, backgroundColour, score, scoreHigh } = this.state;
 
     // Draw background
     // this.drawBorder(
@@ -698,8 +693,10 @@ class Game extends React.Component<GameProps, GameState> {
     ctx.fillStyle = foregroundColour;
     ctx.font = this.TEXT_SIZE + "px dejavu sans mono";
     ctx.fillText(
-      // score.toString(10),
-      "Level: " + (this.state.levelIndex + 1).toString(10),
+      "Level " +
+        (this.state.levelIndex + 1).toString(10) +
+        ":" +
+        score.toString(10),
       this.props.width - this.SHIP_SIZE / 2,
       this.SHIP_SIZE
     );
@@ -709,7 +706,11 @@ class Game extends React.Component<GameProps, GameState> {
     ctx.textBaseline = "middle";
     ctx.fillStyle = foregroundColour;
     ctx.font = this.TEXT_SIZE * 0.75 + "px dejavu sans mono";
-    ctx.fillText("BEST " + scoreHigh, this.props.width / 2, this.SHIP_SIZE);
+    ctx.fillText(
+      "High Score: " + scoreHigh,
+      this.props.width / 2,
+      this.SHIP_SIZE
+    );
 
     // Handle Ship
     const { ship, roids, text, textAlpha, lives } = this.state;
