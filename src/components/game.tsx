@@ -274,7 +274,7 @@ class Game extends React.Component<GameProps, GameState> {
     const nextState = { ...this.state };
 
     // handle Ship
-    const { ship, roids, textAlpha } = nextState;
+    const { ship, roids } = nextState;
 
     // rotate the ship
     ship.angleInRadians += ship.rotationInRadians;
@@ -474,7 +474,7 @@ class Game extends React.Component<GameProps, GameState> {
             ) <
             ship.radius + roids[i].r
           ) {
-            this.explodeShip();
+            this.explodeShip(nextState);
             this.destroyAsteroid(nextState, i);
             break;
           }
@@ -503,7 +503,7 @@ class Game extends React.Component<GameProps, GameState> {
     }
 
     // draw the game text
-    if (textAlpha >= 0) {
+    if (nextState.textAlpha >= 0) {
       // // console.log("draw the game text");
       // ctx.textAlign = "center";
       // ctx.textBaseline = "middle";
@@ -556,8 +556,8 @@ class Game extends React.Component<GameProps, GameState> {
     };
   }
 
-  public explodeShip() {
-    const nextState = { ...this.state };
+  public explodeShip(nextState: GameState) {
+    // const nextState = { ...this.state };
     const { ship } = nextState;
 
     ship.explodeTime = Math.ceil(this.SHIP_EXPLODE_DUR * this.FPS);
