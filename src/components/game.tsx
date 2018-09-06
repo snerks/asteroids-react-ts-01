@@ -970,19 +970,37 @@ class Game extends React.Component<GameProps, GameState> {
 
     return (
       // tslint:disable-next-line:jsx-no-string-ref
-      <canvas
-        // Allow key handlers to work
-        tabIndex={1}
-        // tslint:disable-next-line:jsx-no-string-ref
-        // ref="canvas"
-        ref={this.gameCanvasRefHandlerFn}
-        width={width}
-        height={height}
-        // tslint:disable-next-line:jsx-no-lambda
-        onKeyDown={e => this.handleKeyDown(e)}
-        // tslint:disable-next-line:jsx-no-lambda
-        onKeyUp={e => this.handleKeyUp(e)}
-      />
+      <div style={{ margin: "0 150px" }}>
+        <canvas
+          // Allow key handlers to work
+          tabIndex={1}
+          // tslint:disable-next-line:jsx-no-string-ref
+          // ref="canvas"
+          ref={this.gameCanvasRefHandlerFn}
+          width={width}
+          height={height}
+          // tslint:disable-next-line:jsx-no-lambda
+          onKeyDown={e => this.handleKeyDown(e)}
+          // tslint:disable-next-line:jsx-no-lambda
+          onKeyUp={e => this.handleKeyUp(e)}
+        />
+        <div
+          style={{
+            backgroundColor: "black",
+            color: "white",
+            padding: "3px 15px",
+            width: "1170px"
+          }}
+        >
+          <ul>
+            <li>&lt;SPACE&gt; - Fire</li>
+
+            <li>"Left" Arrow - Rotate Left</li>
+            <li>"Right" Arrow - Rotate Right</li>
+            <li>"Up" Arrow - Thrust</li>
+          </ul>
+        </div>
+      </div>
     );
   }
 
